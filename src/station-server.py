@@ -1,4 +1,5 @@
 import socket
+import sys      # For argument passing
 
 def create_tcp_server(port):
     # Create a TCP/IP socket
@@ -51,5 +52,12 @@ Connection: close
             # Clean up the connection
             connection.close()
 
+def main():
+    # Check if at least one argument is passed (excluding the script name)
+    if len(sys.argv) > 1:
+        print(f"Arguments received: {sys.argv[1:]}")
+    else:
+        print("No arguments received.")
+
 if __name__ == "__main__":
-    create_tcp_server(4444)
+    main()
