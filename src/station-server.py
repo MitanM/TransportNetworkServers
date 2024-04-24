@@ -14,13 +14,13 @@ class Station:
 
 # Global variables
 station_name = ''
-port_tcp = -1       # Web browser communication
-port_udp = -1       # Other stations communication with this station
-neighbour_stations = []
+port_TCP = -1       # Web browser communication
+port_UDP = -1       # Other stations communication with this station
+neighbourStations = []
 
 
 
-def handle_client_connection(client_socket, udp_details):
+def handle_client_connection(client_socket, neighborStation):
     try:
         # Receive the HTTP request
         request = client_socket.recv(1024).decode('utf-8')
@@ -53,7 +53,7 @@ Content-Type: text/html
             elif path.startswith('/?message='):
                 # Extract message and send it via UDP
                 message = path.split('=')[1]
-                send_udp_message(message, udp_details)
+                send_udp_message(message, neighborStation)
                 response_content = f"HTTP/1.1 200 OK\nContent-Type: text/html\n\n<p>Message sent: {message}</p>"
                 client_socket.sendall(response_content.encode('utf-8'))
 
@@ -61,7 +61,7 @@ Content-Type: text/html
             # Handling POST to send message
             content_length = int([x for x in headers if x.startswith('Content-Length:')][0].split()[1])
             message = request.split('\r\n\r\n')[1][8:]  # skip 'message='
-            send_udp_message(message, udp_details)
+            send_udp_message(message, neighborStation)
             response_content = f"HTTP/1.1 303 See Other\nLocation: /?message={message}\n\n"
             client_socket.sendall(response_content.encode('utf-8'))
 
@@ -70,7 +70,7 @@ Content-Type: text/html
 
 
 
-def start_tcp_server(host, port, udp_details):
+def start_tcp_server(host, port, neighborStation):
     try:
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -79,15 +79,15 @@ def start_tcp_server(host, port, udp_details):
         print(f"TCP Server listening on {host}:{port}")
         while True:
             client_socket, _ = server_socket.accept()
-            client_thread = threading.Thread(target=handle_client_connection, args=(client_socket, udp_details))
+            client_thread = threading.Thread(target=handle_client_connection, args=(client_socket, neighborStation))
             client_thread.start()
     except socket.error as e:
         print(f"Failed to start the TCP server: {e}")
 
 
-def send_udp_message(message, udp_details):
+def send_udp_message(message, neighborStation):
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-        sock.sendto(message.encode(), udp_details)
+        sock.sendto(message.encode(), (neighborStation.ip, neighborStation.port))
 
 
 
@@ -101,31 +101,32 @@ def udp_listener(host, port):
 
 
 
-def check_errors(station_name, port_tcp, port_udp, neighbour_stations):
-    if station_name == '' or port_tcp == -1 or port_udp == -1 or len(neighbour_stations) == 0:
+def check_errors(station_name, port_TCP, port_UDP, neighbourStations):
+    if station_name == '' or port_TCP == -1 or port_UDP == -1 or len(neighbourStations) == 0:
         return True
     return False
 
 
 
 def initialise():
-    global port_udp, port_tcp
-    udp_details = (neighbour_stations[0].ip, neighbour_stations[0].port)
+    global port_UDP, port_TCP
+
     # Start UDP listener in a separate thread
-    threading.Thread(target=udp_listener, args=('localhost', port_udp)).start()
-    # Start TCP server to handle client connections
-    start_tcp_server('localhost', port_tcp, udp_details)
+    threading.Thread(target=udp_listener, args=('localhost', port_UDP)).start()
+
+    # Start TCP server to handle client connections  -- FOR FIRST NEIGHBOUR
+    start_tcp_server('localhost', port_TCP, neighbourStations[0])
 
 
 
 def main():
-    global station_name, port_tcp, port_udp, neighbour_stations
+    global station_name, port_TCP, port_UDP, neighbourStations
     # Check if at least one argument is passed (excluding the script name)
     if len(sys.argv) >= 4:
         print(f"Arguments received: {sys.argv[1:]}")
         station_name = sys.argv[1]
-        port_tcp = int(sys.argv[2])
-        port_udp = int(sys.argv[3])
+        port_TCP = int(sys.argv[2])
+        port_UDP = int(sys.argv[3])
         
         # Add neighbour stations
         for i in range(4, len(sys.argv)):
@@ -134,11 +135,11 @@ def main():
                 ip = ip_port[0]
                 port = int(ip_port[1])
                 stn = Station(ip, port)
-                neighbour_stations.append(stn)
+                neighbourStations.append(stn)
     
-        if check_errors(station_name, port_tcp, port_udp, neighbour_stations):
+        if check_errors(station_name, port_TCP, port_UDP, neighbourStations):
             print("Failed error check.")
-            print(station_name, port_tcp, port_udp)
+            print(station_name, port_TCP, port_UDP)
             return
         
         # Run the setup
