@@ -71,16 +71,18 @@ Content-Type: text/html
 
 
 def start_tcp_server(host, port, udp_details):
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind((host, port))
-    server_socket.listen(5)
-    print(f"TCP Server listening on {host}:{port}")
-
-    while True:
-        client_socket, _ = server_socket.accept()
-        client_thread = threading.Thread(target=handle_client_connection, args=(client_socket, udp_details))
-        client_thread.start()
-
+    try:
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server_socket.bind((host, port))
+        server_socket.listen(5)
+        print(f"TCP Server listening on {host}:{port}")
+        while True:
+            client_socket, _ = server_socket.accept()
+            client_thread = threading.Thread(target=handle_client_connection, args=(client_socket, udp_details))
+            client_thread.start()
+    except socket.error as e:
+        print(f"Failed to start the TCP server: {e}")
 
 
 def send_udp_message(message, udp_details):
