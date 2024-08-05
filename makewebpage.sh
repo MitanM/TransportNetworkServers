@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# written by Chris.McDonald@uwa.edu.au
+# written by Chris.McDonald@uwa.edu.au and modified slightly using Chat GPT
 # thanks to:  https://en.clipdealer.com/vector/media/A:112583666
 
 HOST="localhost"	# assuming all stations on the same host
@@ -43,18 +43,36 @@ div.box {
 </style>
 
 <div class="box">
-  <h3>&nbsp;Leaving after $LEAVE</h3>
+  <h3>&nbsp;Leaving after</h3>
+  <form>
+    <input type="time" id="leaveTime" name="leaveTime" onchange="updateLeaveTime()">
+  </form>
 </div>
+<script>
+window.onload = function() {
+    var now = new Date();
+    var hours = now.getHours();
+    var minutes = now.getMinutes();
+    // Ensure hours and minutes are two digits
+    hours = hours < 10 ? '0' + hours : hours;
+    minutes = minutes < 10 ? '0' + minutes : minutes;
+    var timeStr = hours + ':' + minutes;
+    document.getElementById('leaveTime').value = timeStr;
+    updateLeaveTime(); // Update all forms initially with the current time
+};
+
+function updateLeaveTime() {
+    var time = document.getElementById('leaveTime').value;
+    var inputs = document.querySelectorAll('input[name="leave"]');
+    inputs.forEach(input => {
+        input.value = time;
+    });
+}
+</script>
 THE_END
 }
 
-footer() {
-cat << THE_END
 
-</body>
-</html>
-THE_END
-}
 
 each_station() {
     while read from tcpport ; do
@@ -82,9 +100,9 @@ cat << THE_END
     <td style="padding-left: 3em;"><input type="submit" value=" Let's go! "></td>
   </tr>
   </table>
-<!--
+
   <input type="hidden" name="leave" value="$LEAVE">
--->
+
 </form>
 THE_END
     echo "</div>"
@@ -98,6 +116,6 @@ echo "reading file $1"
 echo "creating file $2"
 expand < $1 | sed 's/^ //g' | \
 	tr -s ' ' | grep '[a-z]' | cut '-d ' -f2,3 | sort > $TMP
-( header ; each_station ; footer ) > $2
+( header ; each_station ) > $2
 
 rm -f $TMP
